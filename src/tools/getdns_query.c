@@ -1692,6 +1692,7 @@ main(int argc, char **argv)
 	}
 
 	/* Make the call */
+	freopen((i_am_stubby ? "stubbylog.txt" : "querylog.txt"), "a", stderr);
 	if (interactive) {
 		getdns_eventloop_event read_line_ev = {
 		    &read_line_ev, read_line_cb, NULL, NULL, NULL };
@@ -1704,6 +1705,7 @@ main(int argc, char **argv)
 			printf("> ");
 			fflush(stdout);
 		}
+		fprintf(stderr, "freopen test: Making call - interactively\n");
 		loop->vmt->run(loop);
 	}
 	else if (listen_count) {
@@ -1714,8 +1716,9 @@ main(int argc, char **argv)
 			if (pid == -1) {
 				perror("Could not fork of stubby daemon\n");
 				r = GETDNS_RETURN_GENERIC_ERROR;
-
+				fprintf(stderr, "freopen test: Stubby in background - fork failed\n");
 			} else if (pid) {
+			        fprintf(stderr, "freopen test: Stubby in background - forked ok\n");
 				FILE *fh = fopen("/var/rub/stubby.pid", "w");
 				if (! fh)
 					fh = fopen("/tmp/stubby.pid", "w");
@@ -1724,13 +1727,19 @@ main(int argc, char **argv)
 					fclose(fh);
 					batch_mode = 0;
 				}
-			} else
+			} else {
+			        fprintf(stderr, "freopen test: Stubby - pid=0 after fork.\n");
 				loop->vmt->run(loop);
+			}
 		} else
 #endif
+		  {     fprintf(stderr, "freopen test: Not (Stubby in backgrund)\nThis is stubby on CL\n");
 			loop->vmt->run(loop);
-	} else
+		  }
+	} else {
+		fprintf(stderr, "freopen test: Making call - not interactive and listen count = 0\nThis is getdns_query\n");
 		r = do_the_call();
+	}
 
 	if ((r == GETDNS_RETURN_GOOD && batch_mode))
 		getdns_context_run(context);
@@ -1738,6 +1747,9 @@ main(int argc, char **argv)
 	/* Clean up */
 	getdns_dict_destroy(extensions);
 done_destroy_context:
+	fprintf(stderr, "freopen test: about to direct stderr back to screen\nNo output from stubby, just from getdns_query\n");
+	freopen("/dev/tty", "a", stderr);
+	fprintf(stderr, "freopen test: about to destroy the context\nNo output from stubby, just from getdns_query\n");
 	getdns_context_destroy(context);
 
 	if (listen_list)
@@ -1745,6 +1757,7 @@ done_destroy_context:
 
 	if (fp)
 		fclose(fp);
+
 
 	if (r == CONTINUE)
 		return 0;

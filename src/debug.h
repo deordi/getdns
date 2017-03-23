@@ -60,6 +60,7 @@
 		strftime(buf, 10, "%H:%M:%S", &tm); \
 		fprintf(stderr, "[%s.%.6d] ", buf, (int)tv.tv_usec); \
 		fprintf(stderr, __VA_ARGS__); \
+		fflush(stderr); \
 	} while (0)
 #else
 #define DEBUG_ON(...) do { \
@@ -72,6 +73,7 @@
 		strftime(buf, 10, "%H:%M:%S", &tm); \
 		fprintf(stderr, "[%s.%.6d] ", buf, (int)tv.tv_usec); \
 		fprintf(stderr, __VA_ARGS__); \
+		fflush(stderr); \
 	} while (0)
 #endif
 
