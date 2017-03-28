@@ -45,6 +45,9 @@
 #include "util/rbtree.h"
 #include "ub_loop.h"
 #include "server.h"
+#ifdef HAVE_MDNS_SUPPORT
+#include "util/lruhash.h"
+#endif
 
 struct getdns_dns_req;
 struct ub_ctx;
@@ -128,9 +131,32 @@ typedef struct getdns_upstream {
 	char                     addr_str[INET6_ADDRSTRLEN];
 #endif
 
-	/* How is this upstream doing over UDP? */
-	int                      to_retry;
-	int                      back_off;
+	/**
+	 * How is this upstream doing over UDP?
+	 *
+	 * to_retry = 1, back_off = 1, in context.c:upstream_init()
+	 * 
+	 * When querying over UDP, first a upstream is selected which to_retry
+	 * value > 0 in stub.c:upstream_select().
+	 * 
+	 * Every time a udp request times out, to_retry is decreased, and if
+	 * it reaches 0, it is set to minus back_off in
+	 * stub.c:stub_next_upstream().
+	 *
+	 * to_retry will become > 0 again. because each time an upstream is
+	 * selected for a UDP query in stub.c:upstream_select(), all to_retry
+	 * counters <= 0 are incremented.
+	 *
+	 * On continuous failure, the stubs are less likely to be reselected,
+	 * because each time to_retry is set to minus back_off, in 
+	 * stub.c:stub_next_upstream(), the back_off value is doubled.
+	 *
+	 * Finally, if all upstreams are failing, the upstreams with the
+	 * smallest back_off value will be selected, and the back_off value
+	 * decremented by one.
+	 */
+	int                      to_retry;  /* (initialized to 1) */
+	int                      back_off;  /* (initialized to 1) */
 	size_t                   udp_responses;
 	size_t                   udp_timeouts;
 
@@ -217,6 +243,9 @@ typedef struct getdns_upstreams {
 	size_t referenced;
 	size_t count;
 	size_t current_udp;
+	size_t current_stateful;
+	uint16_t tls_backoff_time;
+	uint16_t tls_connection_retries;
 	getdns_upstream upstreams[];
 } getdns_upstreams;
 
@@ -248,6 +277,9 @@ struct getdns_context {
 	uint32_t             dnssec_allowed_skew;
 	getdns_tls_authentication_t  tls_auth;  /* What user requested for TLS*/
 	getdns_tls_authentication_t  tls_auth_min; /* Derived minimum auth allowed*/
+	uint8_t              round_robin_upstreams;
+	uint16_t             tls_backoff_time;
+	uint16_t             tls_connection_retries;
 
 	getdns_transport_list_t   *dns_transports;
 	size_t                     dns_transport_count;
@@ -290,6 +322,14 @@ struct getdns_context {
 	 * outbound requests -> transaction to getdns_dns_req
 	 */
 	_getdns_rbtree_t outbound_requests;
+
+	/* network requests
+	 */
+	size_t netreqs_in_flight;
+
+	_getdns_rbtree_t       pending_netreqs;
+	getdns_network_req    *first_pending_netreq;
+	getdns_eventloop_event pending_timeout_event;
 
 	struct listen_set *server;
 
@@ -336,6 +376,23 @@ struct getdns_context {
 	/* We need to run WSAStartup() to be able to use getaddrinfo() */
 	WSADATA wsaData;
 #endif
+
+	/* MDNS */
+#ifdef HAVE_MDNS_SUPPORT
+	/* 
+	 * If supporting MDNS, context may be instantiated either in basic mode
+	 * or in full mode. If working in extended mode, two multicast sockets are
+	 * left open, for IPv4 and IPv6. Data can be received on either socket.
+	 * The context also keeps a list of open queries, characterized by a 
+	 * name and an RR type, and a list of received answers, characterized
+	 * by name, RR type and data value.
+	 */
+	int mdns_extended_support; /* 0 = no support, 1 = supported, 2 = initialization needed */
+	int mdns_connection_nb; /* typically 0 or 2 for IPv4 and IPv6 */
+	struct mdns_network_connection * mdns_connection;
+	struct lruhash * mdns_cache;
+
+#endif /* HAVE_MDNS_SUPPORT */
 }; /* getdns_context */
 
 /** internal functions **/
@@ -371,7 +428,6 @@ void _getdns_context_clear_outbound_request(getdns_dns_req *dnsreq);
  * - Frees the getdns_dns_req
  */
 void _getdns_context_cancel_request(getdns_dns_req *dnsreq);
-
 
 /* Calls user callback (with GETDNS_CALLBACK_TIMEOUT + response dict), then
  * cancels and frees the getdns_dns_req with _getdns_context_cancel_request()

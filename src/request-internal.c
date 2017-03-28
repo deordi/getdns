@@ -43,6 +43,7 @@
 #include "dict.h"
 #include "debug.h"
 #include "convert.h"
+#include "general.h"
 
 /* MAXIMUM_TSIG_SPACE = TSIG name      (dname)    : 256
  *                      TSIG type      (uint16_t) :   2
@@ -109,6 +110,9 @@ network_req_cleanup(getdns_network_req *net_req)
 	if (net_req->response && (net_req->response < net_req->wire_data ||
 	    net_req->response > net_req->wire_data+ net_req->wire_data_sz))
 		GETDNS_FREE(net_req->owner->my_mf, net_req->response);
+	if (net_req->debug_tls_peer_cert.size &&
+	    net_req->debug_tls_peer_cert.data)
+		OPENSSL_free(net_req->debug_tls_peer_cert.data);
 }
 
 static uint8_t *
@@ -118,7 +122,7 @@ netreq_reset(getdns_network_req *net_req)
 	/* variables that need to be reset on reinit 
 	 */
 	net_req->unbound_id = -1;
-	net_req->state = NET_REQ_NOT_SENT;
+	_getdns_netreq_change_state(net_req, NET_REQ_NOT_SENT);
 	net_req->dnssec_status = GETDNS_DNSSEC_INDETERMINATE;
 	net_req->tsig_status = GETDNS_DNSSEC_INDETERMINATE;
 	net_req->query_id = 0;
@@ -181,7 +185,13 @@ network_req_init(getdns_network_req *net_req, getdns_dns_req *owner,
 	net_req->write_queue_tail = NULL;
 	/* Some fields to record info for return_call_reporting */
 	net_req->debug_tls_auth_status = GETDNS_AUTH_NONE;
+	net_req->debug_tls_peer_cert.size = 0;
+	net_req->debug_tls_peer_cert.data = NULL;
 	net_req->debug_udp = 0;
+
+	/* Scheduling, touch only via _getdns_netreq_change_state!
+	 */
+	net_req->state = NET_REQ_NOT_SENT;
 
 	if (max_query_sz == 0) {
 		net_req->query    = NULL;
@@ -658,7 +668,8 @@ static const uint8_t no_suffixes[] = { 1, 0 };
 /* create a new dns req to be submitted */
 getdns_dns_req *
 _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
-    const char *name, uint16_t request_type, getdns_dict *extensions)
+    const char *name, uint16_t request_type, getdns_dict *extensions,
+    uint64_t *now_ms)
 {
 	int dnssec_return_status                 = is_extension_set(
 	    extensions, "dnssec_return_status",
@@ -932,6 +943,7 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 	result->finished_next = NULL;
 	result->freed = NULL;
 	result->validating = 0;
+	result->is_dns_request = 1;
 	result->chain = NULL;
 
 	network_req_init(result->netreqs[0], result,
@@ -952,6 +964,11 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 		    (uint16_t) opt_options_size, noptions, options,
 		    netreq_sz - sizeof(getdns_network_req), max_query_sz,
 		    extensions);
+
+	if (*now_ms == 0 && (*now_ms = _getdns_get_now_ms()) == 0)
+		result->expires = 0;
+	else
+		result->expires = *now_ms + context->timeout;
 
 	return result;
 }

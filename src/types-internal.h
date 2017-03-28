@@ -124,7 +124,6 @@ struct getdns_upstream;
 
 #define GETDNS_TRANSPORTS_MAX 3
 #define GETDNS_UPSTREAM_TRANSPORTS 2
-#define GETDNS_CONN_ATTEMPTS 2
 #define GETDNS_TRANSPORT_FAIL_MULT 5
 
 
@@ -183,7 +182,6 @@ typedef struct getdns_tcp_state {
 
 } getdns_tcp_state;
 
-
 /**
  * Request data
  **/
@@ -191,6 +189,12 @@ typedef struct getdns_network_req
 {
 	/* For storage in upstream->netreq_by_query_id */
 	_getdns_rbnode_t node;
+#ifdef HAVE_MDNS_SUPPORT
+	/*
+	 * for storage of continuous query context in hash table of cached results. 
+	 */
+	struct getdns_network_req * mdns_netreq_next;
+#endif /* HAVE_MDNS_SUPPORT */
 	/* the async_id from unbound */
 	int unbound_id;
 	/* state var */
@@ -236,6 +240,7 @@ typedef struct getdns_network_req
 	uint64_t                debug_start_time;
 	uint64_t                debug_end_time;
 	getdns_auth_state_t     debug_tls_auth_status;
+	getdns_bindata          debug_tls_peer_cert;
 	size_t                  debug_udp;
 
 	/* When more space is needed for the wire_data response than is
@@ -308,6 +313,7 @@ typedef struct getdns_dns_req {
 	/* Internally used by return_validation_chain */
 	unsigned dnssec_ok_checking_disabled		: 1;
 	unsigned is_sync_request			: 1;
+	unsigned is_dns_request				: 1;
 
 	/* The validating and freed variables are used to make sure a single
 	 * code path is followed while processing a DNS request, even when
@@ -337,6 +343,11 @@ typedef struct getdns_dns_req {
 
 	/* the transaction id */
 	getdns_transaction_t trans_id;
+
+	/* Absolute time (in miliseconds since epoch),
+	 * after which this dns request is expired; i.e. timed out
+	 */
+	uint64_t expires;
 
 	/* for scheduling timeouts when using libunbound */
 	getdns_eventloop_event timeout;
@@ -408,7 +419,7 @@ extern getdns_dict *dnssec_ok_checking_disabled_avoid_roadblocks;
 
 /* dns request utils */
 getdns_dns_req *_getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
-    const char *name, uint16_t request_type, getdns_dict *extensions);
+    const char *name, uint16_t request_type, getdns_dict *extensions, uint64_t *now_ms);
 
 void _getdns_dns_req_free(getdns_dns_req * req);
 

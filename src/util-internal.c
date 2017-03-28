@@ -862,7 +862,7 @@ _getdns_create_call_reporting_dict(
 				return NULL;
 			}
 		} else{
-			uint32_t idle_timeout = netreq->upstream->keepalive_timeout;
+			uint32_t idle_timeout = (uint32_t) netreq->upstream->keepalive_timeout;
 			if (getdns_dict_set_int( netreq_debug, "idle timeout in ms", idle_timeout)) {
 				getdns_dict_destroy(netreq_debug);
 				return NULL;
@@ -904,6 +904,15 @@ _getdns_create_call_reporting_dict(
 		getdns_dict_destroy(netreq_debug);
 		return NULL;
 	}
+	if (getdns_dict_set_bindata(netreq_debug, "tls_peer_cert",
+	    &netreq->debug_tls_peer_cert)) {
+
+		getdns_dict_destroy(netreq_debug);
+		return NULL;
+	}
+	netreq->debug_tls_peer_cert.size = 0;
+	OPENSSL_free(netreq->debug_tls_peer_cert.data);
+	netreq->debug_tls_peer_cert.data = NULL;
 	return netreq_debug;
 }
 
