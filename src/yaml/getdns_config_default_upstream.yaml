@@ -1,0 +1,10 @@
+#
+# Configure getdns_query to listen on localhost port 53, and use the local default upstream, 
+# but fall back to full recursion when DNSSEC validation fails (i.e. roadblock avoidance)
+#
+resolution_type: GETDNS_RESOLUTION_STUB
+dnssec_roadblock_avoidance: GETDNS_EXTENSION_TRUE
+listen_addresses: 
+  - 127.0.0.1
+  - 0::1
+  

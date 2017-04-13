@@ -1,0 +1,37 @@
+#
+# Setup getdns_query with the root servers and trust anchor for the yeti domain name space.
+#
+dns_root_servers:
+- 240c:f:1:22::6            # server 1
+- 2001:559:8000::6          # server 2
+- 2001:200:1d9::35          # server 3
+- 2a02:cdc5:9715:0:185:5:203:53 # server 4
+- 2001:4b98:dc2:45:216:3eff:fe4b:8c5b # server 5
+- 2a02:2810:0:405::250      # server 6
+- 2001:6d0:6d06::53         # server 7
+- 2a01:4f8:161:6106:1::10   # server 8
+- 2001:e30:1c1e:1::333      # server 9
+- 2001:1608:10:167:32e::53  # server 10
+- 2604:6600:2000:11::4854:a010 # server 11
+- 2001:67c:217c:6::2        # server 12
+- 2a02:ec0:200::1           # server 13
+- 2001:620:0:ff::29         # server 14
+- 2001:1398:1:21::8001      # server 15
+- 2001:da8:a3:a027::6       # server 16
+- 2001:da8:268:4200::6      # server 17
+- 2400:a980:30ff::6         # server 18
+- 2c0f:f530::6              # server 19
+- 2803:80:1004:63::1        # server 20
+- 2400:8901:e001:39::6      # server 21
+- 2a05:78c0:0:2::3:6        # server 22
+- 2401:c900:1401:3b:c::6    # server 23
+- 2001:e30:1c1e:10::333     # server 24
+- 2001:e30:187d::333        # server 25
+dnssec_trust_anchors:
+- name : .
+  type: GETDNS_RRTYPE_DS
+  rdata:
+    key_tag: 55954
+    algorithm: 8
+    digest_type: 2
+    digest : 0x88ff12f948bfbe666ac91b1256bb5b77b51150991a5e50f80a9fab73945ba2aa
