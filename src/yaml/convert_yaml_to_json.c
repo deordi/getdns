@@ -16,7 +16,7 @@
 #include "../../build/src/config.h"
 #include "../gldns/gbuffer.h"
 
-static int yaml_stream_to_json_string(FILE*, char**);
+static char* yaml_stream_to_json_string(FILE*);
 
 static int process_yaml_stream(yaml_parser_t*, yaml_event_t*, gldns_buffer*);
 
@@ -46,8 +46,7 @@ yaml_stream_to_json_stream(FILE* instream, FILE* outstream) {
     
     char* json = NULL;
     
-    if (yaml_stream_to_json_string(instream, &json) != 0) {
-
+    if ((json = yaml_stream_to_json_string(instream)) == NULL) {
         return -1;
     }
 
@@ -59,17 +58,18 @@ yaml_stream_to_json_stream(FILE* instream, FILE* outstream) {
 
 }
 
-int
-yaml_stream_to_json_string(FILE* instream, char** json) {
+char*
+yaml_stream_to_json_string(FILE* instream) {
 
     assert(instream);
 
     gldns_buffer *buf;
-    
+    char* json = NULL;
+
     buf = gldns_buffer_new(8192);
     if (!buf) {
         fprintf(stderr, "Could not assign buffer for json output");
-        return -1;
+        return NULL;
     }
     
     yaml_parser_t parser;
@@ -108,7 +108,7 @@ yaml_stream_to_json_string(FILE* instream, char** json) {
     yaml_event_delete(&event);
     yaml_parser_delete(&parser);
     
-    /* The string terminating null byte has not been written to the buf yet. */
+    /* The string-terminating null byte has not been written to the buf yet. */
     /* We need to terminate the string before returning it. */
 
     char zero = 0;
@@ -117,11 +117,11 @@ yaml_stream_to_json_string(FILE* instream, char** json) {
 
     /* gldns_buffer_export() returns a pointer to the data and 
          sets a flag to prevent it from being deleted by gldns_buffer_free() */
-    *json = (char *) gldns_buffer_export(buf);
+    json = (char *) gldns_buffer_export(buf);
     gldns_buffer_free(buf);
-    fprintf(stderr, "Debug - json string:  %s\n", *json);
+    //fprintf(stderr, "Debug - json string:  %s\n", json);
 
-    return 0;
+    return json;
 
 return_error:
 
@@ -129,8 +129,7 @@ return_error:
     yaml_parser_delete(&parser);
     gldns_buffer_free(buf);
 
-    return -1;
-
+    return NULL;
 }
 
 /* local functions */
@@ -273,12 +272,6 @@ process_yaml_sequence(yaml_parser_t* parser, yaml_event_t* event, gldns_buffer* 
     if (gbuffer_write(buf, seqstart, strlen(seqstart)) != 0) {
         return -1;
     }
-    //if (gldns_buffer_remaining(buf) <= strlen(seqstart)) {
-    //    fprintf(stderr, "json buffer is full: only %lu remaining", gldns_buffer_remaining(buf));
-    //    return -1;
-    //}
-    //gldns_buffer_write_string(buf, seqstart);
-    //fprintf(stderr, "Debug - buf contents:  %s\n", buf->_data);
    
     while (!done)
     {
@@ -302,12 +295,6 @@ process_yaml_sequence(yaml_parser_t* parser, yaml_event_t* event, gldns_buffer* 
                     if (gbuffer_write(buf, comma, strlen(comma)) != 0) {
                         return -1;
                     }
-                    //if (gldns_buffer_remaining(buf) <= strlen(comma)) {
-                    //      fprintf(stderr, "json buffer is full: only %lu remaining", gldns_buffer_remaining(buf));
-                    //      return -1;
-                    //  }
-                    //  gldns_buffer_write_string(buf, comma);
-                    //fprintf(stderr, "Debug - buf contents:  %s\n", buf->_data);
                 }
 
                 if (process_yaml_value(parser, event, buf) != 0) {
@@ -321,12 +308,6 @@ process_yaml_sequence(yaml_parser_t* parser, yaml_event_t* event, gldns_buffer* 
                 if (gbuffer_write(buf, seqend, strlen(seqend)) != 0) {
                     return -1;
                 }
-                //if (gldns_buffer_remaining(buf) <= strlen(seqend)) {
-                //    fprintf(stderr, "json buffer is full: only %lu remaining", gldns_buffer_remaining(buf));
-                //    return -1;
-                //}
-                //gldns_buffer_write_string(buf, seqend);
-                //fprintf(stderr, "Debug - buf contents:  %s\n", buf->_data);
                 done = 1;
                 break;
 
@@ -371,12 +352,6 @@ process_yaml_mapping(yaml_parser_t* parser, yaml_event_t* event, gldns_buffer* b
     if (gbuffer_write(buf, mapstart, strlen(mapstart)) != 0) {
         return -1;
     }
-    //if (gldns_buffer_remaining(buf) <= strlen(mapstart)) {
-    //    fprintf(stderr, "json buffer is full: only %lu remaining", gldns_buffer_remaining(buf));
-    //    return -1;
-    //}
-    //gldns_buffer_write_string(buf, mapstart);
-    //fprintf(stderr, "Debug - buf contents:  %s\n", buf->_data);
     
     while (!done)
     {
@@ -396,13 +371,8 @@ process_yaml_mapping(yaml_parser_t* parser, yaml_event_t* event, gldns_buffer* b
                 if (gbuffer_write(buf, comma, strlen(comma)) != 0) {
                     return -1;
                 }
-                //if (gldns_buffer_remaining(buf) <= strlen(comma)) {
-                //    fprintf(stderr, "json buffer is full: only %lu remaining", gldns_buffer_remaining(buf));
-                //    return -1;
-                //}
-                //gldns_buffer_write_string(buf, comma);
-                //fprintf(stderr, "Debug - buf contents:  %s\n", buf->_data);
             }
+
             if (output_scalar(event, buf) != 0) {
                 fprintf(stderr, "Mapping error: Error outputting key\n");
                 return -1;
@@ -411,12 +381,7 @@ process_yaml_mapping(yaml_parser_t* parser, yaml_event_t* event, gldns_buffer* b
             if (gbuffer_write(buf, colon, strlen(colon)) != 0) {
                 return -1;
             }
-            //if (gldns_buffer_remaining(buf) <= strlen(colon)) {
-            //    fprintf(stderr, "json buffer is full: only %lu remaining", gldns_buffer_remaining(buf));
-            //    return -1;
-            //}
-            //gldns_buffer_write_string(buf, colon);
-            //fprintf(stderr, "Debug - buf contents:  %s\n", buf->_data);
+
             members = 1;
 
         } else if (event->type == YAML_MAPPING_END_EVENT) {
@@ -424,12 +389,7 @@ process_yaml_mapping(yaml_parser_t* parser, yaml_event_t* event, gldns_buffer* b
             if (gbuffer_write(buf, mapend, strlen(mapend)) != 0) {
                 return -1;
             }
-            //if (gldns_buffer_remaining(buf) <= strlen(mapend)) {
-            //    fprintf(stderr, "json buffer is full: only %lu remaining", gldns_buffer_remaining(buf));
-            //    return -1;
-            //}
-            //gldns_buffer_write_string(buf, mapend);
-            //fprintf(stderr, "Debug - buf contents:  %s\n", buf->_data);
+
             done = 1;
             continue;
 
@@ -543,26 +503,12 @@ output_scalar(yaml_event_t* event, gldns_buffer* buf) {
         if (gbuffer_write(buf, "\"", 1) != 0) {
             return -1;
         }
-        //if (gldns_buffer_remaining(buf) <= (event->data.scalar.length + 2)) {
-        //    fprintf(stderr, "json buffer is full: only %lu remaining", gldns_buffer_remaining(buf));
-        //    return -1;
-        //}
-        //gldns_buffer_write_string(buf, "\"");
-        //gldns_buffer_write(buf, event->data.scalar.value, event->data.scalar.length);
-        //gldns_buffer_write_string(buf, "\"");
-        //fprintf(stderr, "Debug - buf contents:  %s\n", buf->_data);
 
     } else {
 
         if (gbuffer_write(buf, event->data.scalar.value, event->data.scalar.length) != 0) {
             return -1;
         }
-        //if (gldns_buffer_remaining(buf) <= event->data.scalar.length) {
-        //    fprintf(stderr, "json buffer is full: only %lu remaining", gldns_buffer_remaining(buf));
-        //    return -1;
-        //}
-        //gldns_buffer_write(buf, event->data.scalar.value, event->data.scalar.length);
-        //fprintf(stderr, "Debug - buf contents:  %s\n", buf->_data);
 
     }
 
