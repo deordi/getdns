@@ -29,7 +29,7 @@ main(int argc, char *argv[])
             fprintf(stderr, "Unrecognized option: %s\n"
                     "Try `%s --help` for more information.\n",
                     argv[k], argv[0]);
-            return 1;
+            return -1;
         }
     }
 
