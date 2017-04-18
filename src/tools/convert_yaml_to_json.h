@@ -32,7 +32,6 @@
 
 char* yaml_stream_to_json_string(FILE*);
 
-
 int yaml_stream_to_json_stream(FILE*, FILE*);
 
 #endif //_CONVERT_YAML_TO_JSON_H

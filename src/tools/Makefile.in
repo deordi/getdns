@@ -43,9 +43,11 @@ CC=@CC@
 WPEDANTICFLAG=@WPEDANTICFLAG@
 CFLAGS=-I$(srcdir)/.. -I$(srcdir) -I.. $(cflags) @CFLAGS@ @CPPFLAGS@ $(WPEDANTICFLAG) $(XTRA_CFLAGS)
 LDFLAGS=-L.. @LDFLAGS@
-LDLIBS=../libgetdns.la @LIBS@
+LDLIBS=../libgetdns.la /usr/local/lib/libyaml.la @LIBS@
+#LDLIBS=../libgetdns.la @LIBS@
 
-ALL_OBJS=getdns_query.lo
+#ALL_OBJS=getdns_query.lo
+ALL_OBJS=getdns_query.lo convert_yaml_to_json.lo
 
 PROGRAMS=getdns_query
 
@@ -65,11 +67,18 @@ all: $(PROGRAMS)
 $(ALL_OBJS):
 	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) -c $(srcdir)/$(@:.lo=.c) -o $@
 
-getdns_query: getdns_query.lo
-	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) -o $@ getdns_query.lo $(LDFLAGS) $(LDLIBS)
+convert_yaml_to_json: convert_yaml_to_json.lo ../gbuffer.lo
+	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) -o $@ convert_yaml_to_json.lo ../gbuffer.lo $(LDFLAGS) $(LDLIBS)
 
-stubby: getdns_query.lo
-	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) -o $@ getdns_query.lo $(LDFLAGS) $(LDLIBS)
+#getdns_query: getdns_query.lo
+#	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) -o $@ getdns_query.lo $(LDFLAGS) $(LDLIBS)
+getdns_query: getdns_query.lo convert_yaml_to_json.lo ../gbuffer.lo
+	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) -o $@ getdns_query.lo convert_yaml_to_json.lo ../gbuffer.lo $(LDFLAGS) $(LDLIBS)
+
+#stubby: getdns_query.lo
+#	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) -o $@ getdns_query.lo $(LDFLAGS) $(LDLIBS)
+stubby: getdns_query.lo convert_yaml_to_json.lo ../gbuffer.lo
+	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) -o $@ getdns_query.lo convert_yaml_to_json.lo ../gbuffer.lo $(LDFLAGS) $(LDLIBS)
 
 install-getdns_query: getdns_query
 	$(INSTALL) -m 755 -d $(DESTDIR)$(bindir)
@@ -118,3 +127,8 @@ getdns_query.lo getdns_query.o: $(srcdir)/getdns_query.c \
  $(srcdir)/../debug.h \
  ../getdns/getdns.h \
  ../getdns/getdns_extra.h
+
+# Dependencies for convert_yaml_to_json
+convert_yaml_to_json.lo convert_yaml_to_json.o: $(srcdir)/convert_yaml_to_json.c \
+ ../config.h \
+ $(srcdir)/../debug.h

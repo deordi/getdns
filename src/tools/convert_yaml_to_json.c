@@ -32,7 +32,7 @@
 #include <yaml.h>
 #include "convert_yaml_to_json.h"
 
-#include "../../build/src/config.h"
+#include "config.h"
 #include "../gldns/gbuffer.h"
 
 //static char* yaml_stream_to_json_string(FILE*);

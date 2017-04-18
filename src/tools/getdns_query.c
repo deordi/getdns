@@ -34,6 +34,7 @@
 #include <ctype.h>
 #include <getdns/getdns.h>
 #include <getdns/getdns_extra.h>
+#include "convert_yaml_to_json.h"
 #ifndef USE_WINSOCK
 #include <arpa/inet.h>
 #include <sys/time.h>
@@ -515,6 +516,9 @@ int parse_config_file(const char *fn, int report_open_failure)
 	FILE *fh;
 	char *config_file = NULL;
 	long config_file_sz;
+	/* TODO consider how to identify config file as yaml */
+	int fn_len = strlen(fn);
+	const char* last_five = &fn[fn_len - 5];
 
 	if (!(fh = fopen(fn, "r"))) {
 		if (report_open_failure)
@@ -522,30 +526,36 @@ int parse_config_file(const char *fn, int report_open_failure)
 			       , fn, strerror(errno));
 		return GETDNS_RETURN_GENERIC_ERROR;
 	}
-	if (fseek(fh, 0,SEEK_END) == -1) {
-		perror("fseek");
-		fclose(fh);
-		return GETDNS_RETURN_GENERIC_ERROR;
+	if (strcmp(last_five, ".yaml") == 0) {
+		config_file = yaml_stream_to_json_string(fh);
+		fprintf( stderr, "Result of converting yaml to json: %s\n", config_file);
+	} 
+	else {
+		if (fseek(fh, 0,SEEK_END) == -1) {
+			perror("fseek");
+			fclose(fh);
+			return GETDNS_RETURN_GENERIC_ERROR;
+		}
+		config_file_sz = ftell(fh);
+		if (config_file_sz <= 0) {
+			/* Empty config is no config */
+			fclose(fh);
+			return GETDNS_RETURN_GOOD;
+		}
+		if (!(config_file = malloc(config_file_sz + 1))){
+			fclose(fh);
+			fprintf(stderr, "Could not allocate memory for \"%s\"\n", fn);
+			return GETDNS_RETURN_MEMORY_ERROR;
+		}
+		rewind(fh);
+		if (fread(config_file, 1, config_file_sz, fh) != (size_t)config_file_sz) {
+			fprintf( stderr, "An error occurred while reading \"%s\": %s\n"
+			       , fn, strerror(errno));
+			fclose(fh);
+			return GETDNS_RETURN_MEMORY_ERROR;
+		}
+		config_file[config_file_sz] = 0;
 	}
-	config_file_sz = ftell(fh);
-	if (config_file_sz <= 0) {
-		/* Empty config is no config */
-		fclose(fh);
-		return GETDNS_RETURN_GOOD;
-	}
-	if (!(config_file = malloc(config_file_sz + 1))){
-		fclose(fh);
-		fprintf(stderr, "Could not allocate memory for \"%s\"\n", fn);
-		return GETDNS_RETURN_MEMORY_ERROR;
-	}
-	rewind(fh);
-	if (fread(config_file, 1, config_file_sz, fh) != (size_t)config_file_sz) {
-		fprintf( stderr, "An error occurred while reading \"%s\": %s\n"
-		       , fn, strerror(errno));
-		fclose(fh);
-		return GETDNS_RETURN_MEMORY_ERROR;
-	}
-	config_file[config_file_sz] = 0;
 	fclose(fh);
 	parse_config(config_file);
 	free(config_file);
@@ -1656,6 +1666,8 @@ main(int argc, char **argv)
 		r = GETDNS_RETURN_MEMORY_ERROR;
 		goto done_destroy_context;
 	}
+	/* TODO tidy sourcing of config data. At the moment it can accumulate from >1 source - resulting settings can be confusing */
+	/* TODO decide how to recognize yaml input */
 	if (i_am_stubby) {
 		int n_chars = snprintf( home_stubby_conf_fn
 		                      , sizeof(home_stubby_conf_fn)
