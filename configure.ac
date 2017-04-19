@@ -593,6 +593,28 @@ else
 	fi
 fi
 
+my_with_libyaml=1
+AC_ARG_WITH(libyaml, AS_HELP_STRING([--with-libyaml=pathname],
+	[path to libyaml (default: search /usr/local ..)]),
+	[], [withval="yes"])
+if test x_$withval = x_yes; then
+	for dir in /usr/local /opt/local /usr/pkg /usr/sfw; do
+		if test -f "$dir/include/yaml.h"; then
+			CFLAGS="$CFLAGS -I$dir/include"
+			LDFLAGS="$LDFLAGS -L$dir/lib"
+			AC_MSG_NOTICE([Found libyaml in $dir])
+			break
+		fi
+	done
+else
+	if test x_$withval != x_no; then
+		CFLAGS="$CFLAGS -I$withval/include"
+		LDFLAGS="$LDFLAGS -L$withval/lib"
+	else
+		my_with_libyaml=0
+	fi
+fi
+
 if test $my_with_libunbound = 1
 then
 	# find libunbound
@@ -628,6 +650,16 @@ then
 	AC_MSG_NOTICE([Checking for dependency libidn])
 	AC_CHECK_LIB([idn], [idna_to_ascii_8z], [], [
 		MISSING_DEPS="${MISSING_DEPS}${MISSING_SEP}libidn"
+		MISSING_SEP=", "
+		found_all_libs=0
+	])
+fi
+
+if test $my_with_libyaml = 1
+then
+	AC_MSG_NOTICE([Checking for dependency libyaml])
+	AC_CHECK_LIB([yaml], [yaml_parser_parse], [], [
+		MISSING_DEPS="${MISSING_DEPS}${MISSING_SEP}libyaml"
 		MISSING_SEP=", "
 		found_all_libs=0
 	])
