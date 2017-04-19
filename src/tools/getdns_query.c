@@ -465,6 +465,7 @@ static void parse_config(const char *config_str)
 	getdns_list *list;
 	getdns_return_t r;
 
+	fprintf(stderr, "parsing json config data...");
 	if ((r = getdns_str2dict(config_str, &config_dict)))
 		fprintf(stderr, "Could not parse config file: %s\n",
 		    getdns_get_errorstr_by_id(r));
@@ -509,6 +510,7 @@ static void parse_config(const char *config_str)
 		}
 		getdns_dict_destroy(config_dict);
 	}
+	fprintf(stderr, " done\n");
 }
 
 int parse_config_file(const char *fn, int report_open_failure)
@@ -518,7 +520,7 @@ int parse_config_file(const char *fn, int report_open_failure)
 	long config_file_sz;
 	/* TODO consider how to identify config file as yaml */
 	int fn_len = strlen(fn);
-	const char* last_five = &fn[fn_len - 5];
+	const char* file_type = &fn[fn_len - 5];
 
 	if (!(fh = fopen(fn, "r"))) {
 		if (report_open_failure)
@@ -526,9 +528,16 @@ int parse_config_file(const char *fn, int report_open_failure)
 			       , fn, strerror(errno));
 		return GETDNS_RETURN_GENERIC_ERROR;
 	}
-	if (strcmp(last_five, ".yaml") == 0) {
+	fprintf( stderr, "Getting config data from %s...\n", fn);
+	if (strcmp(file_type, ".yaml") == 0) {
 		config_file = yaml_stream_to_json_string(fh);
-		fprintf( stderr, "Result of converting yaml to json: %s\n", config_file);
+		if (config_file == NULL) {
+			fprintf(stderr, "An error occurred while parsing %s. Default config data will be used\n", fn);
+		}
+		else {
+			fprintf( stderr, "Contents of %s as json: %s\n", fn, config_file);
+		}
+
 	} 
 	else {
 		if (fseek(fh, 0,SEEK_END) == -1) {
