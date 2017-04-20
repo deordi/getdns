@@ -30,8 +30,34 @@
 
 #include <stdio.h>
 
-char* yaml_stream_to_json_string(FILE*);
+/**
+ * read yaml-syntax data from the stream and convert to json-syntax
+ * yaml syntax resitrictions imposed for getdns:
+ *    the outer-most data structure must be a yaml mapping
+ *    mapping keys must be yaml scalars
+ *    plain scalars are output to the json string unchanged
+ *    non-plain scalars (quoted, double-quoted, wrapped) are output double-quoted
+ * TODO Test on yaml data containing yaml tags (these are ignored at present)
+ *      The code has only been tested on yaml data using indentation style, so it
+ *        should be tested on other styles as well.
+ * @param instream the stream carrying data in yaml syntax
+ * @return a string of data in json syntax on success
+ * @return NULL if there is a yaml syntax violation
+ *                 the outer-most structure in not a mapping
+ *                 a mapping key is complex (a mapping or sequence)
+ */
+char * yaml_stream_to_json_string(FILE *instream);
 
-int yaml_stream_to_json_stream(FILE*, FILE*);
+/**
+ * read yaml-syntax data from the named stream and output json data
+ * See char * yaml_stream_to_json_string(FILE *instream) for yaml syntax restrictions
+ * @param instream the stream carrying data in yaml syntax
+ * @param outstream the stream receiving data in json syntax
+ * @return 0 on success
+ * @return -1 if there is a yaml syntax violation
+ *               the outer-most structure in not a mapping
+ *               a mapping key is complex (a mapping or sequence)
+ */
+int yaml_stream_to_json_stream(FILE *instream, FILE *outstream);
 
 #endif //_CONVERT_YAML_TO_JSON_H
