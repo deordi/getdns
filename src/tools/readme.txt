@@ -22,9 +22,11 @@ TODO
       non-plain scalars (quoted, double-quoted, wrapped) are output double-quoted
     yaml tags can be used to specify data type. At present the code ignores tags.
     Test on yaml data containing yaml tags (these are ignored at present)
+ c. Test on very large config file.
+ d. Unit or tpackage tests.
 
-4) The gbuffer used is currently fixed at 8192 bytes. Chang to allow the buffer to grow.
+4) The gbuffer used to hold the json output is currently fixed at 8192 bytes. 
+   If the buffer fills up before data conversion has finished the data in the .yaml file will be ignored. 
+   Change to allow the buffer to grow.
 
-5) Examples of yaml data files, commented.
-
-6) push to github
+5) Consider how to recognise yaml configuration files. At present .yaml ending is used.

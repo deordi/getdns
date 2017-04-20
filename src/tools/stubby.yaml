@@ -1,18 +1,48 @@
 #
-# 10 April 2017
-# this is a yaml version of the stubby.conf that is included with the getdns package
+# This is a yaml version of the stubby.conf that is included with the getdns package
 #
+# Restrictions on the yaml supported:
+#     the outer-most data structure must be a yaml mapping
+#     mapping keys must be yaml scalars
+#     plain scalars will be converted to json unchanged
+#     non-plain scalars (quoted, double-quoted, wrapped) will be interpreted as json strings, i.e. double quoted
+#     yaml tags are not supported
+#
+#
+# Specifies whether to run as a recursive or stub resolver (GETDNS_RESOLUTION_RECURSING or GETDNS_RESOLUTION_STUB)
+# For stubby this needs to be set to GETDNS_RESOLUTION_STUB
 resolution_type: GETDNS_RESOLUTION_STUB
+#
+# Ordered list composed of one or more transport protocols: GETDNS_TRANSPORT_UDP, GETDNS_TRANSPORT_TCP, GETDNS_TRANSPORT_TLS
+# If only one transport value is specified it will be the only transport used. 
+# Should it not be available basic resolution will fail. 
+# Fallback transport options are specified by including multiple values in the list.
 dns_transport_list:
   - GETDNS_TRANSPORT_TLS
+#
+# Selects strict (GETDNS_AUTHENTICATION_REQUIRED) or oportunistic (GETDNS_AUTHENTICATION_NONE) mode 
+# for authenification of the DNS server
+# Opportunistic mode means that UDP will be used if protocl specified under dns_transpor_list fails.
 tls_authentication: GETDNS_AUTHENTICATION_REQUIRED
+#
+# EDNS0 option to pad the size of the DNS query
 tls_query_padding_blocksize: 256
+#
+# EDNS0 option for ECS client privacy
 edns_client_subnet_private : 1
+#
+# Set the listen addresses for the stubby DAEMON
 listen_addresses:
   - 127.0.0.1
   -  0::1
+
+## EDNS0 option for keep-alive idle timeout in ms
 idle_timeout: 10000
+#
+# Instructs stubby to distribute queries across all available name servers, rather using them sequentially until they are unavailable
 round_robin_upstreams: 1
+#
+# List of upstream recursive name servers to send queries to
 upstream_recursive_servers:
   - address_data: 145.100.185.15
     tls_auth_name: "dnsovertls.sinodun.com"
@@ -34,6 +64,12 @@ upstream_recursive_servers:
     tls_pubkey_pinset:
       - digest: "sha256"
         value: 62lKu9HsDVbyiPenApnc4sfmSYTHOVfFgL3pyB+cBL4=
+# if a server is temporarily unavailable, it can be commented out
+#  - address_data: 2001:610:1:40ba:145:100:185:15
+#    tls_auth_name: "dnsovertls.sinodun.com"
+#    tls_pubkey_pinset:
+#      - digest: "sha256"
+#        value: 62lKu9HsDVbyiPenApnc4sfmSYTHOVfFgL3pyB+cBL4=
   - address_data: 2001:610:1:40ba:145:100:185:16
     tls_auth_name: "dnsovertls1.sinodun.com"
     tls_pubkey_pinset:
